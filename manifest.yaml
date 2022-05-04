@@ -1,0 +1,77 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: namespace-admission
+  namespace: namespace-admission
+  labels:
+    name: namespace-admission
+spec:
+  ports:
+  - name: webhook
+    port: 443
+    targetPort: 8080
+  selector:
+    name: namespace-admission
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: namespace-admission
+  namespace: namespace-admission
+  labels:
+    name: namespace-admission
+spec:
+  replicas: 1
+  selector:
+      matchLabels:
+        name: namespace-admission
+  template:
+    metadata:
+      name: namespace-admission 
+      labels:
+        name: namespace-admission
+    spec:
+      containers:
+        - name: webhook
+          image: harbor/develop/srujan/admission:1.0
+          imagePullPolicy: Never
+          resources:
+            limits:
+              memory: 50Mi
+              cpu: 300m
+            requests:
+              memory: 50Mi
+              cpu: 300m
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+          securityContext:
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: namespace-admission-certs
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: namespace-admission
+webhooks:
+  - admissionReviewVersions: 
+    - v1
+    name: namespace-admission.srujan.ns
+    clientConfig:
+      service:
+        name: namespace-admission
+        namespace: namespace-admission
+        path: "/"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM1ekNDQWMrZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJeU1ETXlOREl4TWpFek0xb1hEVE15TURNeU1USXhNakV6TTFvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBSnpDClpjZTQ4aHRySGd2UG9iZi9iYjFuTzJ6bXRkbnNsdHJtanIxcDVIdDBrMDk2azdGd2ZDK09jRmpjdDJrZkZjTWkKcVpoV1gzTWF1eGdPb0NqVXM5QlNna09yNTYvTm9XTTVuMjRHa3JvZjF5VmExZHhYbXIxQTVLanVvRDladTBtLwpQa1NqalNSWEgzaC93YTVVVWpaT2xjZXFSMkEzUnVrTTRQMmQ0endjMzJnSHUzVGtCNXorOGJ4YkFTbWpuSkZuCll5QVdmSGJnd3pab0NXSDgrbDZvbEM2VjFkRlhkK1lYbmhmbHQ3ejBCVWViWmJsaFkyN2xEcUxBc2Nua2xwRU4KQ2dha2NYb2xwbW9QdTZvajNtUkF6YU04MU5qR0VQOGUzOTNNUVNJUmdUeGlLMU5sTmJ0aUhoVnUwMVZGdHpwYgp6aGJBZnAxRE1lVStvaXVBbUhNQ0F3RUFBYU5DTUVBd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZQd1hCMUI1OGxLbWJRdExmc3VTNFgzVm1xS3dNQTBHQ1NxR1NJYjMKRFFFQkN3VUFBNElCQVFCZlZGV1h5QXpiMi85NU5uSDlIWiszYmFOdUhMUll0dmx5OU50QWR5V2Nwak1WTXQ0MAovODYzUE1jTmFoMnFvMWpjZ0phWHF5WUdnYTJXQXZOMld1RnBpdUdpZ1ZxN1BtZzUySVIxU1VKVGxjbm9ZQ3g5CktjMjNKamIwTUJOaEFMUklHaTFSMlgzK2tIV1FqaEJCendObUtpajRCc0VvcFJMdnRMTDlGblNOakdIb1R2T1oKR2UvVnFsbXFpak5wSmRGRk9KeWdIT0ZIUjJ0Vms4ZnY2T2s3QTQ1TDNiQVE5R1o1MUE1QnI3WTRGOVVHM01MWApRS3NDeStsbVc3RUZ3cUU0UXRpRHBBL3FpTHh5TzBOZStlSUpnVXh5elk3K1ZmQ0phZDVlVlBGbW1JUTJHdThzCitiSE9Lc1o2WmhkQ0tpUTJDYjlxaXM0V2U5YytzNU9PVnJ2eQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    rules:
+      - operations: ["CREATE","UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["namespaces"]
+    sideEffects: None
+    failurePolicy: Ignore
